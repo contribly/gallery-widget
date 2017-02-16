@@ -41,8 +41,12 @@ function contriblyInitGallery(span) {
   wrapper.append(widget);
   span.append(wrapper);
 
-  infiniteScroll.initialize();
+  contriblyGalleryjQuery('.list').isotope({
+      itemSelector: '.list-item',
+      layoutMode: 'masonry'
+  });
 
+  infiniteScroll.initialize();
 }
 
 var contriblyGalleryPageSize = 12;
@@ -66,6 +70,17 @@ var infiniteScroll = {
       url: assignmentUrl + "&pageSize=" + contriblyGalleryPageSize + (infiniteScroll.data.lastContributionDate ? "&createdBefore=" + infiniteScroll.data.lastContributionDate : ""),
       success: function(contributions) {
 
+        function attributesBarFor(attribution, created, place) {
+          var attributesBar = contriblyGalleryjQuery('<ul>', {class: "attributes"});
+          attributesBar.append(contriblyGalleryjQuery("<li>", {class: "attribution"}).text(attribution));
+          var formattedCreatedDate = contriblyGalleryjQuery.format.date(created, "d MMMM yyyy")
+          attributesBar.append(contriblyGalleryjQuery("<li>", {class: "created"}).text(formattedCreatedDate));
+          if (place) {
+            attributesBar.append(contriblyGalleryjQuery("<li>", {class: "place"}).text(place));
+          }
+          return attributesBar;
+        }
+
         contriblyGalleryjQuery(contributions).each(function(index, contribution) {
 
           function galleryItemFor(contribution) {
@@ -73,15 +88,14 @@ var infiniteScroll = {
             var hasMedia = contribution.mediaUsages.length > 0;
             if (hasMedia) {
 
-                function artifactUrlFor(mediaUsage, artifactFormat) {
-                    var artifact = contriblyUnderscore.find(mediaUsage.artifacts, function(artifact) {
+                function artifactWithUrlFor(mediaUsage, artifactFormat) {
+                    return contriblyUnderscore.find(mediaUsage.artifacts, function(artifact) {
                         return artifact.label == artifactFormat && artifact.url != undefined;
                     });
-                    return artifact != null ? artifact.url : null;
                 }
 
-                thumbnail = artifactUrlFor(contribution.mediaUsages[0], "medium");
-                fullsizeImage = artifactUrlFor(contribution.mediaUsages[0], "extralarge");
+                thumbnailArtifact = artifactWithUrlFor(contribution.mediaUsages[0], "mediumoriginalaspectdouble");
+                fullsizeArtifact = artifactWithUrlFor(contribution.mediaUsages[0], "extralarge");
 
                 headline = contribution.headline;
                 body = contribution.body;
@@ -89,10 +103,10 @@ var infiniteScroll = {
 
                 var placeName = (contribution.place && contribution.place.name) ? contribution.place.name : ""; // TODO shows that the next block needs to be an append
 
-                var galleryListItem = contriblyGalleryjQuery("<li>", {class: "list-item"});
+                var galleryListItem = contriblyGalleryjQuery("<div>", {class: "list-item"});
 
                 var aTag = contriblyGalleryjQuery("<a>", {
-                    href: fullsizeImage,
+                    href: fullsizeArtifact != null ? fullsizeArtifact.url : null,
                     rel: "contri-gal",
                     class: "list-content fancybox",
                     title: headline,
@@ -103,15 +117,15 @@ var infiniteScroll = {
                     }
                 );
 
-                aTag.append(contriblyGalleryjQuery("<img>", {src: thumbnail}));
+                if (thumbnailArtifact) {
+                    aTag.append(contriblyGalleryjQuery("<img>", {src: thumbnailArtifact.url}).attr("width", thumbnailArtifact.width).attr("height", thumbnailArtifact.height));
+                }
                 aTag.append(contriblyGalleryjQuery("<h3>").text(headline));
+                aTag.append(attributesBarFor(author, contribution.created, placeName));
 
                 galleryListItem.append(aTag);
 
-                var holder = contriblyGalleryjQuery("<div>");
-                holder.append(galleryListItem);
-                return holder.html();
-
+                return galleryListItem;
 
             } else {
                 return "TODO - support text only contributions";
@@ -119,10 +133,9 @@ var infiniteScroll = {
 
           }
 
-          var galleryItem = galleryItemFor(contribution);
+          contriblyGalleryjQuery('.list').isotope('insert', galleryItemFor(contribution));
 
-          contriblyGalleryjQuery('.list').append(galleryItem);
-          contriblyGalleryjQuery('.fancybox').fancybox({
+          contriblyGalleryjQuery('.fancybox').fancybox({    // TODO Is this in the right place?
             afterLoad: function() {
               var attribution = contriblyGalleryjQuery(this.element).data("author");
               var created = contriblyGalleryjQuery(this.element).data("created");
@@ -134,21 +147,21 @@ var infiniteScroll = {
 
               var titleDiv = contriblyGalleryjQuery("<div>");
 
-              var attributesBar = contriblyGalleryjQuery('<ul>', {class: "attributes"});
-              attributesBar.append(contriblyGalleryjQuery("<li>", {class: "attribution"}).text(attribution));
-              var formattedCreatedDate = contriblyGalleryjQuery.format.date(created, "d MMMM yyyy")
-              attributesBar.append(contriblyGalleryjQuery("<li>", {class: "created"}).text(formattedCreatedDate));
-              if (place) {
-                attributesBar.append(contriblyGalleryjQuery("<li>", {class: "place"}).text(place));
-              }
-              titleDiv.append(attributesBar);
+              titleDiv.append(attributesBarFor(attribution, created, place));
 
               titleDiv.append(contriblyGalleryjQuery("<h2>").text(this.title));
               if (itemBody) {
                 titleDiv.append(contriblyGalleryjQuery("<span>", {class: "body"}).text(itemBody));
               }
 
-              this.title = titleDiv.html();
+              var inner = contriblyGalleryjQuery("<div>", {class: "gallery"});
+              inner.append(titleDiv);
+              var wrapper = contriblyGalleryjQuery('<div>', {class: "contribly"});
+              wrapper.append(inner);
+
+              var holder = contriblyGalleryjQuery("<div>");
+              holder.append(wrapper);
+              this.title = holder.html();
             },
             helpers: {
               title: {
@@ -159,6 +172,11 @@ var infiniteScroll = {
 
           infiniteScroll.data.lastContributionDate = contribution.created;
         });
+
+        contriblyGalleryjQuery('.list').imagesLoaded().always(function(instance) {
+            contriblyGalleryjQuery(".list").isotope('layout');
+        });
+
       }
     });
 
@@ -167,7 +185,7 @@ var infiniteScroll = {
 
 document.addEventListener("DOMContentLoaded", function() {
   contriblyGalleryjQuery.ajax({
-    url: "https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/gallery2017012801-SNAPSHOT.css",
+    url: "https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/gallery2017021501.css",
     success: function(data) {
       contriblyGalleryjQuery("head").append("<style>" + data + "</style>");
       contriblyGalleryjQuery('.contribly-gallery').each(function(i, v) {

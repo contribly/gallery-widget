@@ -64,7 +64,8 @@
           display: none;
         }
         img {
-          width:100%;
+          max-width: 100%;
+          height:auto;
           -webkit-transition: all 0.4s ease-in-out;
           -moz-transition: all 0.4s ease-in-out;
           -o-transition: all 0.4s ease-in-out;
@@ -130,7 +131,7 @@ $url_0: url(https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/fancybo
 $url_1: url(fancybox_loading.gif);
 $url_2: url(blank.gif);
 $url_3: url(fancybox_overlay.png);
-$url_4: url(fancybox_sprite@2x.png);
+$url_4: url(https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/fancybox_sprite.png);
 $url_5: url(fancybox_loading@2x.gif);
 
 //@extend-elements
@@ -364,7 +365,6 @@ $url_5: url(fancybox_loading@2x.gif);
 @media only screen and(-webkit-min-device-pixel-ratio: 1.5), only screen and(min--moz-device-pixel-ratio: 1.5), only screen and(min-device-pixel-ratio: 1.5) {
   #fancybox-loading {
     background-image: $url_4;
-    background-size: 44px 152px;
     div {
       background-image: $url_5;
       background-size: 24px 24px;
@@ -372,15 +372,12 @@ $url_5: url(fancybox_loading@2x.gif);
   }
   .fancybox-close {
     background-image: $url_4;
-    background-size: 44px 152px;
   }
   .fancybox-prev span {
     background-image: $url_4;
-    background-size: 44px 152px;
   }
   .fancybox-next span {
     background-image: $url_4;
-    background-size: 44px 152px;
   }
   .fancybox-nav span {
    visibility: visible;
