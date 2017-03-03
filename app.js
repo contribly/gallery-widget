@@ -4,6 +4,13 @@ var contriblyGalleryjQuery = $.noConflict();
 
 function contriblyInitGallery(span) {
 
+  function publishContriblyEvent(ce) {
+        if (typeof contriblyEventListener === "function") {
+            ce['widget'] = 'gallery';
+            contriblyEventListener(ce);
+        }
+    }
+
   var overrideContriblyApi = span.attr('data-api');
   contriblyApi = (overrideContriblyApi) ? overrideContriblyApi : "https://api.contribly.com/1",
   requestedAssignment = span.attr('data-assignment'),
@@ -47,27 +54,41 @@ function contriblyInitGallery(span) {
   });
 
   infiniteScroll.initialize();
+
+  publishContriblyEvent({type: "loaded"})
 }
 
 var contriblyGalleryPageSize = 12;
 
 var infiniteScroll = {
   data: {
-    lastContributionDate: null
+     lastContributionDate: new Date().toISOString(),
+     lastLoad: null
   },
   initialize: function() {
     document.addEventListener("scroll", this.handleScroll);
     this.loadData(assignmentUrl);
   },
   handleScroll: function() {
-   if (document.getElementsByTagName("body")[0].scrollTop + window.innerHeight >= document.getElementsByTagName("body")[0].scrollHeight) {
-    infiniteScroll.loadData(assignmentUrl);
-   }
+    var bodyElement = document.getElementsByTagName("body")[0];
+    var bodyScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    var bottomOfView = bodyScrollTop + window.innerHeight;
+    var needToLoadMore = bottomOfView >= bodyElement.scrollHeight;
+    if (needToLoadMore) {
+        infiniteScroll.loadData(assignmentUrl);
+    }
   },
   loadData: function(assignmentUrl) {
+    var alreadyInflight = infiniteScroll.data.lastContributionDate == infiniteScroll.data.lastLoad;
+    if(alreadyInflight) {
+        return;
+    }
+    infiniteScroll.data.lastLoad = infiniteScroll.data.lastContributionDate;
+
+    var ajaxUrl = assignmentUrl + "&pageSize=" + contriblyGalleryPageSize + (infiniteScroll.data.lastContributionDate ? "&createdBefore=" + infiniteScroll.data.lastContributionDate : "");
     contriblyGalleryjQuery.ajax({
       type: 'GET',
-      url: assignmentUrl + "&pageSize=" + contriblyGalleryPageSize + (infiniteScroll.data.lastContributionDate ? "&createdBefore=" + infiniteScroll.data.lastContributionDate : ""),
+      url: ajaxUrl,
       success: function(contributions) {
 
         function attributesBarFor(attribution, created, place) {
@@ -103,8 +124,6 @@ var infiniteScroll = {
 
                 var placeName = (contribution.place && contribution.place.name) ? contribution.place.name : ""; // TODO shows that the next block needs to be an append
 
-                var galleryListItem = contriblyGalleryjQuery("<div>", {class: "list-item"});
-
                 var aTag = contriblyGalleryjQuery("<a>", {
                     href: fullsizeArtifact != null ? fullsizeArtifact.url : null,
                     rel: "contri-gal",
@@ -123,6 +142,7 @@ var infiniteScroll = {
                 aTag.append(contriblyGalleryjQuery("<h3>").text(headline));
                 aTag.append(attributesBarFor(author, contribution.created, placeName));
 
+                var galleryListItem = contriblyGalleryjQuery("<div>", {class: "list-item"});
                 galleryListItem.append(aTag);
 
                 return galleryListItem;
@@ -133,7 +153,8 @@ var infiniteScroll = {
 
           }
 
-          contriblyGalleryjQuery('.list').isotope('insert', galleryItemFor(contribution));
+          var galleryItemForContribution = galleryItemFor(contribution);
+          contriblyGalleryjQuery('.list').isotope('insert', galleryItemForContribution);
 
           contriblyGalleryjQuery('.fancybox').fancybox({    // TODO Is this in the right place?
             afterLoad: function() {
@@ -184,13 +205,15 @@ var infiniteScroll = {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  contriblyGalleryjQuery.ajax({
-    url: "https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/gallery2017021501.css",
-    success: function(data) {
-      contriblyGalleryjQuery("head").append("<style>" + data + "</style>");
-      contriblyGalleryjQuery('.contribly-gallery').each(function(i, v) {
-        contriblyInitGallery(contriblyGalleryjQuery(v));
-      });
-    }
-  });
+    contriblyGalleryjQuery('.contribly-gallery').each(function(i, v) {
+        var requestedCss = contriblyGalleryjQuery.attr('data-css');
+        var cssToLoad = (requestedCss != undefined) ? requestedCss : "https://s3-eu-west-1.amazonaws.com/contribly-widgets/gallery/gallery2017021501.css";
+        contriblyGalleryjQuery.ajax({
+            url: cssToLoad,
+            success: function(data) {
+                contriblyGalleryjQuery("head").append("<style>" + data + "</style>");
+                contriblyInitGallery(contriblyGalleryjQuery(v));
+            }
+        });
+    });
 })
